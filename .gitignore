@@ -1,1 +1,10 @@
 .idea
+results
+results_new/
+results_time/
+save_model/
+data
+__pycache__
+*.pth
+Datasets
+flair/modeling/flair_pretrained_weights/

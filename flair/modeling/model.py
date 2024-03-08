@@ -227,6 +227,22 @@ class FLAIRModel(torch.nn.Module):
 
         return probs.cpu().numpy(), logits.cpu().numpy()
 
+    def flair_classifier(self, image, text):
+        self.eval()
+
+        # Pre-process image
+        image = self.preprocess_image(image)
+
+        # Pre-process text
+        text_input_ids, text_attention_mask = self.preprocess_text(text)
+
+        # Forward vision and text encoder
+        with torch.no_grad():
+            img_embeds = self.vision_model(image)
+            text_embeds = self.text_model(text_input_ids, text_attention_mask)
+
+        return img_embeds, text_embeds
+
     def preprocess_image(self, image):
 
         # Set image dtype
@@ -288,11 +304,15 @@ class FLAIRModel(torch.nn.Module):
             with torch.no_grad():
                 print(descriptions)
                 descriptions = [self.caption.replace("[CLS]", iDescription) for iDescription in descriptions]
+                # print('descriptions is ',descriptions)
                 text_token = self.text_model.tokenizer(descriptions, truncation=True, padding=True, return_tensors='pt')
+                # print('text_token is ',text_token)
                 input_ids = text_token["input_ids"].to(device).to(torch.long)
                 attention_mask = text_token["attention_mask"].to(device).to(torch.long)
 
                 text_embeds = self.text_model(input_ids, attention_mask)
+                # print('the size of text_embeds is ',text_embeds.shape)
+                # print('text_embeds is ',text_embeds)
 
             text_embeds_dict[categories[iKey]] = text_embeds.mean(0).unsqueeze(0)
 
@@ -381,7 +401,9 @@ class TextModel(torch.nn.Module):
         # Combine last feature layers to compute text embedding
         last_hidden_states = torch.stack([output['hidden_states'][1], output['hidden_states'][2],
                                           output['hidden_states'][-1]])
+        # print('the size of last_hidden_states is ',last_hidden_states.shape)
         embed = last_hidden_states.permute(1, 0, 2, 3).mean(2).mean(1)
+        # print('the size of embed is ',embed.shape)
 
         # Compute projection from text embedding to multi-modal projection
         embed = self.projection_head_text(embed)

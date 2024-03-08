@@ -14,7 +14,7 @@ from flair.modeling.model import FLAIRModel
 from flair.transferability.data.dataloader import get_dataloader_splits
 from flair.utils.metrics import evaluate, average_folds_results, save_results
 from flair.modeling.misc import set_seeds
-from flair.transferability.modeling.adapters import LinearProbe, ClipAdapter, ZeroShot, TipAdapter
+from flair.transferability.modeling.adapters import LinearProbe, LinearProbe2, ClipAdapter, ZeroShot, TipAdapter, TipAdapter_f, CoOp, CoCoOp, ProGrad, KgCoOp
 from flair.transferability.modeling.finetuning import FineTuning
 
 from local_data.constants import *
@@ -37,6 +37,26 @@ def init_adapter(model, args):
     elif args.method == "lp":
         print("Transferability by Linear Probing...", end="\n")
         adapter = LinearProbe(model, args.setting["targets"], tta=args.tta, fta=args.fta)
+    elif args.method == "lp2":
+        print("Transferability by Linear Probe ++...", end="\n")
+        adapter = LinearProbe2(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+                              domain_knowledge=args.domain_knowledge)
+    elif args.method == "coop":
+        print("Transferability by CoOp...", end="\n")
+        adapter = CoOp(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+                              domain_knowledge=args.domain_knowledge)
+    elif args.method == "cocoop":
+        print("Transferability by CoCoOp...", end="\n")
+        adapter = CoCoOp(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+                              domain_knowledge=args.domain_knowledge)
+    elif args.method == "kgcoop":
+        print("Transferability by KgCoOp...", end="\n")
+        adapter = KgCoOp(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+                              domain_knowledge=args.domain_knowledge)
+    elif args.method == "prograd":
+        print("Transferability by ProGrad...", end="\n")
+        adapter = ProGrad(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+                              domain_knowledge=args.domain_knowledge)
     elif args.method == "clipAdapter":
         print("Transferability by CLIP Adapter...", end="\n")
         adapter = ClipAdapter(model, args.setting["targets"], tta=args.tta, fta=args.fta,
@@ -47,7 +67,7 @@ def init_adapter(model, args):
                              domain_knowledge=args.domain_knowledge, train=False)
     elif args.method == "tipAdapter-f":
         print("Transferability by TIP-Adapter-f Adapter...", end="\n")
-        adapter = TipAdapter(model, args.setting["targets"], tta=args.tta, fta=args.fta,
+        adapter = TipAdapter_f(model, args.setting["targets"], tta=args.tta, fta=args.fta,
                              domain_knowledge=args.domain_knowledge, train=True)
     elif args.method == "zero_shot":
         print("Zero-shot classification...", end="\n")
@@ -55,15 +75,19 @@ def init_adapter(model, args):
                            domain_knowledge=args.domain_knowledge)
     else:
         print("Adapter not implemented... using LP", end="\n")
-        adapter = LinearProbe(args, model.vision_model)
-
+        adapter = LinearProbe(model, args.setting["targets"], tta=args.tta, fta=args.fta)
     return adapter
 
 
+# def generate_experiment_id(args):
+#     id = args.experiment + '_vision_' + args.architecture + '_method_' + args.method + '_pretrained_' \
+#          + str(args.load_weights) + '_shots_train_' + args.shots_train + '_shots_test_' + args.shots_test + \
+#          '_balance_' + str(args.balance)
+#     return id
+
+
 def generate_experiment_id(args):
-    id = args.experiment + '_vision_' + args.architecture + '_method_' + args.method + '_pretrained_' \
-         + str(args.load_weights) + '_shots_train_' + args.shots_train + '_shots_test_' + args.shots_test + \
-         '_balance_' + str(args.balance)
+    id = args.method + '_shots' + args.shots_train
     return id
 
 
@@ -135,8 +159,13 @@ def process(args):
     else:
         args.metrics = None
 
+    # # Save experiment metrics
+    # save_results(args.metrics, args.out_path, id_experiment=generate_experiment_id(args),
+    #              id_metrics="metrics", save_model=args.save_model, weights=args.weights)
+
+
     # Save experiment metrics
-    save_results(args.metrics, args.out_path, id_experiment=generate_experiment_id(args),
+    save_results(args.metrics, args.out_path, args.experiment, id_experiment=generate_experiment_id(args),
                  id_metrics="metrics", save_model=args.save_model, weights=args.weights)
 
     # Get metrics averaged across fold for external testing
@@ -165,7 +194,7 @@ def main():
                         help='02_MESIDOR, 37_DeepDRiD_online_test',
                         type=lambda s: [item for item in s.split(',')])
     parser.add_argument('--method', default='zero_shot',
-                        help='lp - tipAdapter - tipAdapter-f - clipAdapter'
+                        help='lp - tipAdapter - tipAdapter-f - clipAdapter - lp2'
                              'FT - FT_last - LP_FT -LP_FT_bn_last - FT_freeze_all'
                              'zero_shot -')
 

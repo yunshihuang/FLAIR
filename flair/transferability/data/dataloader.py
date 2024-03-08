@@ -13,6 +13,9 @@ from torchvision.transforms import Compose
 from flair.pretraining.data.dataset import Dataset
 from flair.pretraining.data.transforms import LoadImage, ImageScaling, CopyDict
 
+import os
+import pickle
+
 
 def get_dataloader_splits(dataframe_path, data_root_path, targets_dict, shots_train="80%", shots_val="0%",
                           shots_test="20%", balance=False, batch_size=8, num_workers=0, seed=0, task="classification",
@@ -44,21 +47,60 @@ def get_dataloader_splits(dataframe_path, data_root_path, targets_dict, shots_tr
             data_i["label"] = 1
         data.append(data_i)
 
+
+    # # set the test set for seed 0 then fix it 
+    # if seed == 0:
+    #     labels = [data_i["label"] for data_i in data]
+    #     unique_labels = np.unique(labels)
+
+    #     data_test = []
+    #     data_notest = []
+    #     for iLabel in unique_labels:
+    #         idx = list(np.squeeze(np.argwhere(labels == iLabel)))
+    #         test_samples = get_shots(shots_test, len(idx))
+
+    #         # print('train_samples is ',train_samples)
+    #         # print('val_samples is ',val_samples)
+    #         # print('test_samples is ',test_samples)
+
+    #         [data_test.append(data[iidx]) for iidx in idx[:test_samples]]
+    #         [data_notest.append(data[iidx]) for iidx in idx[test_samples:]]
+
+    #         path_save = '/export/livia/home/vision/Yhuang/FLAIR/data/MESSIDOR/'
+    #         if not os.path.exists(path_save):
+    #             # Create a new directory because it does not exist
+    #             os.makedirs(path_save)
+    #         with open(os.path.join(path_save, "test"), 'wb') as fp:
+    #             pickle.dump(data_test, fp)
+    #         with open(os.path.join(path_save, "no_test"), 'wb') as fp:
+    #             pickle.dump(data_notest, fp)
+    
+
+    # path_save = '/export/livia/home/vision/Yhuang/FLAIR/data/MESSIDOR/' 
+    # with open(os.path.join(path_save, "test"), "rb") as fp:   # Unpickling
+    #     data_test = pickle.load(fp)
+    # with open(os.path.join(path_save, "no_test"), "rb") as fp:   # Unpickling
+    #     data_notest = pickle.load(fp)
+
     # Shuffle
     random.seed(seed)
-    random.shuffle(data)
-
-    # Train-Val-Test split
+    random.shuffle(data)    
+    # split train and val randomly for each seed
     labels = [data_i["label"] for data_i in data]
     unique_labels = np.unique(labels)
 
     data_train, data_val, data_test = [], [], []
     for iLabel in unique_labels:
+
         idx = list(np.squeeze(np.argwhere(labels == iLabel)))
 
+        test_samples = get_shots(shots_test, len(idx))
         train_samples = get_shots(shots_train, len(idx))
         val_samples = get_shots(shots_val, len(idx))
-        test_samples = get_shots(shots_test, len(idx))
+
+        # print('train_samples is ',train_samples)
+        # print('val_samples is ',val_samples)
+        # print('test_samples is ',test_samples)
 
         [data_test.append(data[iidx]) for iidx in idx[:test_samples]]
         [data_train.append(data[iidx]) for iidx in idx[test_samples:test_samples+train_samples]]

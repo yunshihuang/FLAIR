@@ -78,24 +78,24 @@ def segmentation_metrics(refs, preds):
 def classification_metrics(refs, preds):
 
     # Kappa quadatic
-    k = np.round(cohen_kappa_score(refs, np.argmax(preds, -1), weights="quadratic"), 3)
+    k = np.round(cohen_kappa_score(refs, np.argmax(preds, -1), weights="quadratic"), 4)
 
     # Confusion matrix
     cm = confusion_matrix(refs, np.argmax(preds, -1))
     cm_norm = (cm / np.expand_dims(np.sum(cm, -1), 1))
 
     # Accuracy per class - and average
-    acc_class = list(np.round(np.diag(cm_norm), 3))
-    aca = np.round(np.mean(np.diag(cm_norm)), 3)
+    acc_class = list(np.round(np.diag(cm_norm), 4))
+    aca = np.round(np.mean(np.diag(cm_norm)), 4)
 
     # recall
-    recall_class = [np.round(recall_score(refs == i, np.argmax(preds, -1) == i), 3) for i in np.unique(refs)]
+    recall_class = [np.round(recall_score(refs == i, np.argmax(preds, -1) == i), 4) for i in np.unique(refs)]
     # specificity
-    specificity_class = [np.round(specificity(refs == i, np.argmax(preds, -1) == i), 3) for i in np.unique(refs)]
+    specificity_class = [np.round(specificity(refs == i, np.argmax(preds, -1) == i), 4) for i in np.unique(refs)]
 
     # class-wise metrics
-    auc_class = [np.round(roc_auc_score(refs == i, preds[:, i]), 3) for i in np.unique(refs)]
-    f1_class = [np.round(f1_score(refs == i, np.argmax(preds, -1) == i), 3) for i in np.unique(refs)]
+    auc_class = [np.round(roc_auc_score(refs == i, preds[:, i]), 4) for i in np.unique(refs)]
+    f1_class = [np.round(f1_score(refs == i, np.argmax(preds, -1) == i), 4) for i in np.unique(refs)]
 
     metrics = {"aca": aca, "kappa": k, "acc_class": acc_class, "f1_avg": np.mean(f1_class),
                "auc_avg": np.mean(auc_class),
@@ -113,17 +113,17 @@ def average_folds_results(list_folds_results, task):
     out = {}
     for iMetric in metrics_name:
         values = np.concatenate([np.expand_dims(np.array(iFold[iMetric]), -1) for iFold in list_folds_results], -1)
-        out[(iMetric + "_avg")] = np.round(np.mean(values, -1), 3).tolist()
-        out[(iMetric + "_std")] = np.round(np.std(values, -1), 3).tolist()
+        out[(iMetric + "_avg")] = np.round(np.mean(values, -1), 4).tolist()
+        out[(iMetric + "_std")] = np.round(np.std(values, -1), 4).tolist()
 
     if task == "classification":
-        print('Metrics: aca=%2.3f(%2.3f) - kappa=%2.3f(%2.3f) - macro f1=%2.3f(%2.3f)' % (
+        print('Metrics: aca=%2.4f(%2.4f) - kappa=%2.4f(%2.4f) - macro f1=%2.4f(%2.4f)' % (
             out["aca_avg"], out["aca_std"], out["kappa_avg"], out["kappa_std"], out["f1_avg_avg"], out["f1_avg_std"]))
 
     return out
 
 
-def save_results(metrics, out_path, id_experiment=None, id_metrics=None, save_model=False, weights=None):
+def save_results(metrics, out_path, experiment, id_experiment=None, id_metrics=None, save_model=False, weights=None):
 
     # Create results folder
     if not os.path.isdir(out_path):
@@ -135,12 +135,23 @@ def save_results(metrics, out_path, id_experiment=None, id_metrics=None, save_mo
     else:
         id_experiment = id_experiment
 
-    # Create main experiment folder
-    if not os.path.isdir(out_path + id_experiment):
-        os.mkdir(out_path + id_experiment)
+    # # Create main experiment folder
+    # if not os.path.isdir(out_path + id_experiment):
+    #     os.mkdir(out_path + id_experiment)
+
+    # # Store metrics in experiment dataset
+    # with open(out_path + id_experiment + '/metrics_' + id_metrics + '.json', 'w') as fp:
+    #     json.dump(metrics, fp)
 
     # Store metrics in experiment dataset
-    with open(out_path + id_experiment + '/metrics_' + id_metrics + '.json', 'w') as fp:
+    base_dir = os.path.join(out_path, str(experiment))
+    if not os.path.exists(base_dir):
+        # Create a new directory because it does not exist
+        os.makedirs(base_dir)
+    filename = str(id_experiment) + '.json'
+    full_path = os.path.join(base_dir, filename)
+
+    with open(full_path, 'w') as fp:
         json.dump(metrics, fp)
 
     # Store weights
